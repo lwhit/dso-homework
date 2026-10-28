@@ -3,7 +3,7 @@
 #   kubectl -n podinfo port-forward deploy/pod-r1-podinfo 8080:5050
 
 replicaCount: 3
-backend: http://nginx.nginx.svc.cluster.local:80/echo
+backend: http://nginx.nginx.svc.cluster.local:80/
 
 service:
   httpPort: 5050

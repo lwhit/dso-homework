@@ -1,34 +1,59 @@
 .DEFAULT_GOAL := help
+PODINFO_REPO := https://stefanprodan.github.io/podinfo
+PODINFO_CHART := podinfo/podinfo
+PODINFO_NAMESPACE := podinfo
+NGINX_NAMESPACE := nginx
 
-# Main targets that candidates should implement
+
 .PHONY: deploy_podinfo
 deploy_podinfo: ## Deploy podinfo application
 	$(MAKE) _check_helm
-	helm repo add podinfo https://stefanprodan.github.io/podinfo
-	helm upgrade --install --wait pod-r1 \
-		--namespace podinfo \
+	helm repo add podinfo $(PODINFO_REPO) --force-update
+	helm upgrade --install pod-r1 \
+		--namespace $(PODINFO_NAMESPACE) \
 		--create-namespace \
-		podinfo/podinfo
+		--values values.yaml \
+		--wait --timeout 120s \
+		$(PODINFO_CHART)
  
 .PHONY: update_podinfo
 update_podinfo: ## Update pod replicas
+	$(MAKE) _check_helm
 	$(MAKE) _validate_config
-	helm upgrade pod-r1 \
-		--namespace podinfo \
-		podinfo/podinfo \
-		-f values.yaml
+	helm upgrade --install pod-r1 \
+		--namespace $(PODINFO_NAMESPACE) \
+		--values values.yaml \
+		--wait --timeout 120s \
+		$(PODINFO_CHART)
 
 .PHONY: deploy_backend
 deploy_backend: ## Deploy backend services
 	$(MAKE) _check_kubectl
 	[ -d "./manifests" ] || (echo "manifests/ directory not found" && exit 1)
 	kubectl get namespace nginx >/dev/null 2>&1 || kubectl create namespace nginx
+
 	kubectl apply \
-		--namespace nginx \
+		--namespace $(NGINX_NAMESPACE) \
 		-f ./manifests
+	kubectl rollout status deployment/nginx \
+		--namespace $(NGINX_NAMESPACE) \
+		--timeout=120s
+
 	$(MAKE) deploy_podinfo
 	$(MAKE) update_podinfo
-	
+
+	kubectl run podinfo-echo-test \
+		--namespace $(PODINFO_NAMESPACE) \
+		--image=curlimages/curl:8.12.1 \
+		--restart=Never --rm -i \
+		--command -- sh -ec '\
+			response=$$(curl --fail --silent --show-error \
+				-X POST http://pod-r1-podinfo:5050/echo \
+				-H "Content-Type: text/plain" \
+				--data "echo-test"); \
+			echo -e "echo-test response:\n$$response"; \
+			echo "$$response" | grep -q "hello world" '
+
 
 # Internal helper targets (prefixed with _)
 .PHONY: _check_kubectl
