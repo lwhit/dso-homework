@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  labels:
+    app: nginx
+data:
+  default.conf: |
+    server {
+        listen 80;
+
+        location /echo {
+            client_body_buffer_size 128k;
+            client_max_body_size 1m;
+
+            default_type text/plain;
+            return 200 "$request_body";
+        }
+
+        location / {
+            default_type  application/json;
+            return 200 '{"message": "hello world", "service": "nginx"}';
+        }
+    }

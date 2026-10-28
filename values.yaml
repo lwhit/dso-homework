@@ -1,0 +1,10 @@
+# podinfo values.yaml overrides
+# k3s testing reminder: use port forwarding for local testing
+#   kubectl -n podinfo port-forward deploy/pod-r1-podinfo 8080:5050
+
+replicaCount: 3
+backend: http://nginx.nginx.svc.cluster.local:80/echo
+
+service:
+  httpPort: 5050
+  externalPort: 5050
